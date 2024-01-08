@@ -318,9 +318,9 @@ A program is a set of instructions that complete computing tasks. The instructio
 Even the most basic programs do one or more of the following tasks:
 
 - Accepts input from a source. Input includes information that:
--- Comes from a user who's typing on a keyboard or selecting controls on an interface.
--- Is retrieved from a file.
--- Is called from another program or network connection.
+- - Comes from a user who's typing on a keyboard or selecting controls on an interface.
+- - Is retrieved from a file.
+- - Is called from another program or network connection.
 - Processes information, which includes:
 -- Performing logic.
 -- Performing mathematical calculations.

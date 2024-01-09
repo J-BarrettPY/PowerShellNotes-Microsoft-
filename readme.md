@@ -509,3 +509,307 @@ PowerShell supports several profile files. You can apply them at various levels,
 | All users, current host      | $PSHOME\Microsoft.PowerShell_profile.ps1   |
 | Current user, all hosts      | $Home[My ]Documents\PowerShell\Profile.ps1 |
 | Current user, current host   | $Home[My ]Documents\PowerShell\Microsoft.PowerShell_profile.ps1 |
+
+There are two variables here: `$PSHOME` and `$Home`. `$PSHOME` points to the installation directory for PowerShell. `$Home` is the current user's home directory.
+
+## Create a profile
+When you first install PowerShell, there are no profiles, but there is a `$Profile` variable. It's an object that points to the path where each profile to apply should be placed. To create a profile:
+
+- Decide the level on which you want to create the profile. You can run `$Profile | Select-Object *` to see the profile types and the paths associated with them.
+
+- Select a profile type and create a text file at its location by using a command like this one: `New-Item -Path $Profile.CurrentUserCurrentHost`.
+
+- Add your customizations to the text file and save it. The next time you start a session, your changes will be applied.
+
+## Parameters
+
+After you've created a few scripts, you might notice your scripts aren't flexible. Going into your scripts to change them isn't efficient. There's a better way to handle changes: use parameters.
+
+Using parameters makes your scripts flexible, because it allows users to select options or send input to the scripts. You won't need to change your scripts as frequently, because in some cases you'll just need to change a parameter value.
+
+Cmdlets, functions, and scripts all accept parameters.
+
+## Declare and use a parameter
+To declare a parameter, you need to use the keyword `Param` with an open and close parenthesis:
+
+```powershell
+Param()
+```
+
+Inside the parentheses, you define your parameters, separating them with commas. A typical parameter declaration might look like this:
+
+```powershell
+# CreateFile.ps1
+Param (
+  $Path
+)
+New-Item $Path # Creates a new file at $Path.
+Write-Host "File $Path was created"
+```
+The script has a `$Path` parameter that's later used in the script to create a file. The script is now more flexible.
+
+## Use the parameter
+To call a script with a parameter, you need to provide a name and a value. Assume the above script is called `CreateFile.ps1`. You could call it like this:
+
+```powershell
+./CreateFile.ps1 -Path './newfile.txt' # File ./newfile.txt was created.
+./CreateFile.ps1 -Path './anotherfile.txt' # File ./anotherfile.txt was created.
+```
+
+Because you used a parameter, you don't need to change the script file when you want to call the file something else.
+
+## Improve your parameters
+When you first create a script that uses parameters, you might remember exactly what the parameters are for and what values are reasonable for them. As time passes, you might forget those details. You might also want to give a script to a colleague. The solution in these cases is to be explicit, which makes your scripts easy to use. You want a script to fail early if it passes unreasonable parameter values. Here are some things to consider when you define parameters:
+
+- **Is it mandatory**? Is the parameter optional or required?
+- **What values are allowed**? What values are reasonable?
+- **Does it accept more than one type of value**? Does the parameter accept any type of value, like string, Boolean, integer, and object?
+- **Can the parameter rely on a default**? Can you omit the value altogether and rely on a default value instead?
+- **Can you further improve the user experience**? Can you be even clearer to your user by providing a Help message?
+
+## Select an approach
+All parameters are optional by default. That default might work in some cases, but sometimes you need your user to provide parameter values, and the values need to be reasonable ones. If the user doesn't provide a value to a parameter, the script should quit or tell the user how to fix the problem. The worst scenario is for the script to continue and do things you don't want it to do.
+
+There are a couple of approaches you can use to make your script safer. You can write custom code to inspect the parameter value. Or, you can use decorators that do roughly the same thing. Let's look at both approaches.
+
+- Use `If/Else`. The `If/Else` construct allows you to check the value of a parameter and then decide what to do. Here's an example:
+
+```powershell
+Param(
+   $Path
+)
+If (-Not $Path -eq '') {
+   New-Item $Path
+   Write-Host "File created at path $Path"
+} Else {
+   Write-Error "Path cannot be empty"
+}
+```
+
+The script will run `Write-Error` if you don't provide a value for `$Path`.
+
+- Use the `Parameter[]` decorator. A better way, which requires less typing, is to use the `Parameter[]` decorator:
+
+```powershell
+Param(
+   [Parameter(Mandatory)]
+   $Path
+)
+New-Item $Path
+Write-Host "File created at path $Path"
+```
+
+If you run this script and omit a value for `$Path`, you end up in a dialog that prompts for the value:
+
+```
+cmdlet CreateFile.ps1 at command pipeline position 1
+Supply values for the following parameters:
+Path:
+```
+
+You can improve this decorator by providing a Help message users will see when they run the script:
+
+```powershell
+[Parameter(Mandatory, HelpMessage = "Please provide a valid path")]
+```
+
+When you run the script, you get a message that tells you to type `!?` for more information:
+
+```powershell
+cmdlet CreateFile.ps1 at command pipeline position 1
+Supply values for the following parameters:
+(Type !? for Help.)
+Path: !?  # You type !?
+Please provide a valid path  # Your Help message.
+```
+
+- **Assign a type**. If you assign a type to a parameter, you can say, for example, that the parameter accepts only strings, not Booleans. That way, the user knows what to expect. You can assign a type to a parameter by preceding it with the type enclosed in brackets:
+
+```powershell
+Param(
+   [string]$Path
+)
+```
+
+These three approaches aren't mutually exclusive. You can combine them to make your script safer.
+
+-------------------
+
+# Flow control
+
+Flow control refers to how your code runs in your console or script. It describes the flow the code follows and how you control that flow. There are various constructs available to help you control the flow. The code can run all the statements, or only some of them. It can also repeat certain statements until it meets a certain condition.
+
+Let's examine these flow-control constructs to see what they can do:
+
+- **Sanitize input**. If you use parameters in a script, you need to ensure your parameters hold reasonable values so your script works as intended. Writing code to manage this process is called sanitizing input.
+
+- **Control execution flow**. The previous technique ensures you get reasonable and correct input data. This technique is more about deciding how to run code. The values set can determine which group of statements runs.
+
+- **Iterate over data**. Sometimes your data takes the form of an array, which is a data structure that contains many items. For such data, you might need to examine each item and perform an operation for each one. Many constructs in PowerShell can help you with that process.
+
+## Manage input and execution flow by using If, ElseIf, and Else
+
+You can use an `If` construct to determine if an expression is `True` or `False`. Depending on that determination, you might run the statement defined by the `If` construct. The syntax for `If` looks like this:
+
+```powershell
+If (<expression that evaluates to True or False>) 
+{
+  # Statement that runs only if the preceding expression is $True.
+}
+```
+
+## Operators
+PowerShell has two built-in parameters to determine if an expression is True or False:
+
+- `$True` indicates that an expression is `True`.
+- `$False` indicates that an expression is `False`.
+You can use operators to determine if an expression is `True` or `False`. There are a few operators. The basic idea is usually to determine if something on the left side of the operator matches something on the right side, given the operator's condition. An operator can express conditions like whether something is equal to something else, larger than something else, or matches a regular expression.
+
+Here's an example of using an operator. The `-le` operator determines if the value on the left side of the operator is less than or equal to the value on the right side:
+
+```powershell
+$Value = 3
+If ($Value -le 0) 
+{
+  Write-Host "Is negative"
+}
+```
+
+This code won't display anything because the expression evaluates to `False`. The value 3 is clearly positive.
+
+## Else
+The `If` construct runs statements only if they evaluate to `True`. What if you want to handle cases where they evaluate to `False`? That's when you use the `Else` construct. `If` expresses "if this specific case is true, run this statement." `Else` doesn't take an expression. It captures all cases where the `If` clause evaluates to `False`. When `If` and `Else` are combined, the code runs the statements in one of the two constructs. Let's modify the previous code to include an `Else` construct:
+
+```powershell
+$Value = 3
+If ($Value -le 0) 
+{
+  Write-Host "Is negative"
+} Else {
+  Write-Host "Is Positive"
+}
+```
+
+Because we put the `Else` next to the ending brace for the `If`, we created a joined construct that works as one. If you run this code in the console, you'll see that Is Positive prints. That's because `If` evaluates to `False`, but `Else` evaluates to `True`. So `Else` prints its statement.
+
+## ElseIf
+`If` and `Else` work great to cover all the paths code can take. `ElseIf` is another construct that can be helpful. `ElseIf` is meant to be used with `If`. It says "the expression in this construct will be evaluated if the preceding `If` statement evaluates to `False`." Like `If`, `ElseIf` can take an expression, so it helps to think of `ElseIf` as a secondary `If`.
+
+Here's an example that uses `ElseIf`:
+
+```powershell
+# _FullyTax.ps1_
+# Possible values: 'Minor', 'Adult', 'Senior Citizen'
+$Status = 'Minor'
+If ($Status -eq 'Minor') 
+{
+  Write-Host $False
+} ElseIf ($Status -eq 'Adult') {
+  Write-Host $True
+} Else {
+  Write-Host $False
+}
+```
+
+It's possible to write this code in a more compact way, but this way does show the use of `ElseIf`. It shows how `If` is evaluated first, then `ElseIf`, and then `Else`.
+
+-------------------
+
+# Error handling
+
+So far, you've seen how adding parameters and flow-control constructs can make your scripts flexible and safer to use. But sometimes, you'll get errors in your scripts. You need a way to handle those errors.
+
+Here are some factors to consider:
+
+- **How to handle the error**. Sometimes you get errors you can recover from, and sometimes it's better to stop the script. It's important to think about the kinds of errors that can happen and how to best manage them.
+
+- **How severe the error is**. There are various kinds of error messages. Some are more like warnings to the user that something isn't OK. Some are more severe, and the user really needs to pay attention. Your error-handling approach depends on the type of error. The approach could be anything from presenting a message to raising the severity level and potentially stopping the script.
+
+## Errors
+A cmdlet or function, for example, might generate many types of errors. We recommend that you write code to manage each type of error that might occur, and that you manage them appropriately given the type. For example, say you're trying to write to a file. You might get various types of errors depending on what's wrong. If you're not allowed to write to the file, you might get one type of error. If the file doesn't exist, you might get another type of error, and so on.
+
+There are two types of errors you can get when you run PowerShell:
+
+- **Terminating error**. An error of this type will stop execution on the row where the error occurred. You can handle this kind of error using either `Try-Catch` or `Trap`. If the error isn't handled, the script will quit at that point and no statements will run.
+
+- **Non-terminating error**. This type of error will notify the user that something is wrong, but the script will continue. You can upgrade this type of error to a terminating error.
+
+## Managing errors by using Try/Catch/Finally
+You can think of a terminating error as an unexpected error. These errors are severe. When you deal with one, you should consider what type of error it is and what to do about it.
+
+There are three related constructs that can help you manage this type of error:
+
+- `Try`. You'll use a `Try` block to encapsulate one or more statements. You'll place the code that you want to run — for example, code that writes to a data source — inside braces. A `Try` must have at least one `Catch` or `Finally` block. Here's how it looks:
+
+```powershell
+Try {
+   # Statement. For example, call a command.
+   # Another statement. For example, assign a variable.
+}
+```
+
+- `Catch`. You'll use this keyword to catch or manage an error when it occurs. You'll then inspect the exception object to understand what type of error occurred, where it occurred, and whether the script can recover. A `Catch` follows immediately after a `Try`. You can include more than one `Catch` — one for each type of error — if you want. Here's an example:
+
+```powershell
+Try {
+   # Do something with a file.
+} Catch [System.IO.IOException] {
+   Write-Host "Something went wrong"
+}  Catch {
+   # Catch all. It's not an IOException but something else.
+}
+```
+
+The script tries to run a command that does some I/O work. The first Catch catches a specific type of error: [System.IO.IOException]. The last Catch catches anything that's not a [System.IO.IOException].
+
+- `Finally`. The statements in this block will run regardless of whether anything goes wrong. You probably won't use this block much, but it can be useful for cleaning up resources, for example. To use it, add it as the last block:
+
+```powershell
+Try {
+   # Do something with a file.
+} Catch [System.IO.IOException] {
+   Write-Host "Something went wrong"
+}  Catch {
+   # Catch all. It's not an IOException but something else.
+} Finally {
+   # Clean up resources.
+}
+```
+
+## Inspecting errors
+We've talked about exception objects in the context of catching errors. You can use these objects to inspect what went wrong and take appropriate measures. An exception object contains:
+
+- **A message**. The message tells you in a few words what went wrong.
+
+- **The stacktrace**. The stacktrace tells you which statements ran before the error. Imagine you have a call to function A, followed by B, followed by C. The script stops responding at C. The stacktrace will show that chain of calls.
+
+- **The offending row**. The exception object also tells you which row the script was running when the error occurred. This information can help you debug your code.
+
+So how do you inspect an exception object? There's a built-in variable, `$_`, that has an `exception` property. To get the error message, for example, you would use `$_.exception.message`. In code, it might look like this:
+
+```powershell
+Try {
+     # Do something with a file.
+   } Catch [System.IO.IOException] {
+     Write-Host "Something IO went wrong: $($_.exception.message)"
+   }  Catch {
+     Write-Host "Something else went wrong: $($_.exception.message)"
+   }
+```
+
+## Raising errors
+In some situations, you might want to cause an error:
+
+- **Non-terminating errors**. For this type of error, PowerShell just notifies you that something went wrong, by using the `Write-Error` cmdlet, for example. The script continues to run. That might not be the behavior you want. To raise the severity of the error, you can use a parameter like `-ErrorAction` to cause an error that can be caught with `Try/Catch`, like so:
+
+```powershell
+Try {
+   Get-Content './file.txt' -ErrorAction Stop
+} Catch {
+   Write-Error "File can't be found"
+}
+```
+
+By using the -ErrorAction parameter and the value Stop, you can cause an error that Try/Catch can catch.
+
+- **Business rules**. You might have a situation where the code doesn't actually stop responding, but you want it to for business reasons. Imagine you're sanitizing input and you check whether a parameter is a path. A business requirement might specify only certain paths are allowed, or the path needs to look a certain way. If the checks fail, it makes sense to throw an error. In a situation like this, you can use a `Throw`.

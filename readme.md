@@ -1,3 +1,5 @@
+Notes from the Automate administrative tasks by using PowerShell by Microsoft.
+
 # Get-Command
 
 PowerShell uses verbs, such as Get, and nouns, such as Random, to create cmdlets. This is called the verb-noun naming standard.
